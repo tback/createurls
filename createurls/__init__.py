@@ -2,7 +2,6 @@
 """
 Requires apachelog.  `pip install apachelog`
 """
-from __future__ import with_statement
 import apachelog
 import csv
 import re
@@ -47,7 +46,7 @@ def main():
     options, args = parser.parse_args()
 
     if not args:
-        sys.stderr.write('Please provide an Apache log to read from.\n')
+        parser.print_help()
         sys.exit(1)
 
     create_urls(args[0], options.outfile, options.logformat, options.grep)
@@ -56,7 +55,7 @@ def main():
 def create_urls(logfile, outfile, logformat, grep=None):
     parser = apachelog.parser(logformat)
 
-    with open(logfile) as f, open(outfile, 'wb') as o:
+    with open(logfile) as f, open(outfile, 'w') as o:
         writer = csv.writer(o)
 
         # Status spinner
@@ -77,13 +76,17 @@ def create_urls(logfile, outfile, logformat, grep=None):
 
             try:
                 data = parser.parse(line)
-            except apachelog.ApacheLogParserError:
+            except apachelog.ApacheLogParserError as e:
+                print(e)
+                continue
+
+            if data[STATUS_CODE] != '200':
                 continue
 
             method, url, protocol = data[REQUEST].split()
 
             # Check for GET requests with a status of 200
-            if method != 'GET' or data[STATUS_CODE] != '200':
+            if method != 'GET':
                 continue
 
             # Exclude media requests and special urls
@@ -93,7 +96,7 @@ def create_urls(logfile, outfile, logformat, grep=None):
             # This is a good record that we want to write
             writer.writerow([url, data[USER_AGENT]])
 
-        print ' done!'
+        print(' done!')
 
 
 if __name__ == '__main__':
